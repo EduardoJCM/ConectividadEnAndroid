@@ -65,7 +65,7 @@ fun VideoSpeedTestApp() {
     val videoOptions = listOf(
         VideoOption("Prueba Pequeña (20MB)", "https://drive.google.com/uc?export=download&id=1w2umNQk2LaHTwLvg_t6Lsoq-N9zKnjRj"),
         VideoOption("Prueba Mediana (41MB)", "https://drive.google.com/uc?export=download&id=11T_uIHdA_34HzfloD7BbIR7wiledgyhf"),
-        VideoOption("Prueba Grande (250MB)", "https://pixeldrain.com/api/file/kodD1oie?download")
+        VideoOption("Prueba Grande (100MB)", "https://speedtest.newark.linode.com/100MB-newark.bin")
     )
 
     // Función para actualizar la información de red
