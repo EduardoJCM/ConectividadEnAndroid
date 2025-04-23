@@ -20,6 +20,8 @@ import androidx.core.content.ContextCompat
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.net.URL
+import java.text.SimpleDateFormat
+import java.util.*
 
 class MainActivity<Bundle> : ComponentActivity() {
     private val permissions = arrayOf(
@@ -43,7 +45,9 @@ class MainActivity<Bundle> : ComponentActivity() {
         }
 
         setContent {
-            VideoSpeedTestApp()
+            MaterialTheme {
+                VideoSpeedTestApp()
+            }
         }
     }
 }
@@ -51,27 +55,27 @@ class MainActivity<Bundle> : ComponentActivity() {
 @Composable
 fun VideoSpeedTestApp() {
     val context = LocalContext.current
-    var networkType by remember { mutableStateOf("Detectando red...") }
+    var networkInfo by remember { mutableStateOf(NetworkInfo("Detectando red...", 0, 0)) }
     var loadingState by remember { mutableStateOf("") }
     var isTesting by remember { mutableStateOf(false) }
     var selectedVideo by remember { mutableStateOf<VideoOption?>(null) }
     var testHistory by remember { mutableStateOf<List<TestResult>>(emptyList()) }
 
-    // Lista fija de videos de prueba
+    // Lista de videos de prueba
     val videoOptions = listOf(
-        VideoOption("Video Pequeño (20MB)", "https://drive.google.com/uc?export=download&id=1w2umNQk2LaHTwLvg_t6Lsoq-N9zKnjRj"),
-        VideoOption("Video Mediano (41MB)", "https://drive.google.com/uc?export=download&id=11T_uIHdA_34HzfloD7BbIR7wiledgyhf"),
-        VideoOption("Video Grande (127MB)", "https://drive.google.com/uc?export=download&id=16fvYlIMGvx0czauDZsrZ6g2uURSF3EXf")
+        VideoOption("Prueba Pequeña (20MB)", "https://drive.google.com/uc?export=download&id=1w2umNQk2LaHTwLvg_t6Lsoq-N9zKnjRj"),
+        VideoOption("Prueba Mediana (41MB)", "https://drive.google.com/uc?export=download&id=11T_uIHdA_34HzfloD7BbIR7wiledgyhf"),
+        VideoOption("Prueba Grande (250MB)", "https://pixeldrain.com/api/file/kodD1oie?download")
     )
 
-    // Función para actualizar el tipo de red
-    fun updateNetworkType() {
-        networkType = getNetworkType(context)
+    // Función para actualizar la información de red
+    fun updateNetworkInfo() {
+        networkInfo = getNetworkInfo(context)
     }
 
-    // Actualizar el tipo de red al iniciar
+    // Actualizar al iniciar
     LaunchedEffect(Unit) {
-        updateNetworkType()
+        updateNetworkInfo()
     }
 
     Column(
@@ -92,68 +96,53 @@ fun VideoSpeedTestApp() {
             )
 
             IconButton(
-                onClick = { updateNetworkType() },
+                onClick = { updateNetworkInfo() },
                 modifier = Modifier.size(48.dp)
             ) {
                 Text("⟳")
             }
         }
 
-        // Estado de la red
-        Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 8.dp)
-        ) {
-            Column(modifier = Modifier.padding(16.dp)) {
-                Text(
-                    text = "Red detectada:",
-                    style = MaterialTheme.typography.labelMedium
-                )
-                Text(
-                    text = networkType,
-                    style = MaterialTheme.typography.bodyLarge
-                )
-            }
-        }
+        Spacer(modifier = Modifier.height(8.dp))
+
+        // Tarjeta de información de red
+        NetworkInfoCard(networkInfo)
+
+        Spacer(modifier = Modifier.height(16.dp))
 
         // Selector de videos
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 8.dp)
-        ) {
-            Text(
-                text = "Seleccione video de prueba:",
-                style = MaterialTheme.typography.labelMedium,
-                modifier = Modifier.padding(bottom = 8.dp)
-            )
+        Text(
+            text = "Seleccione video de prueba:",
+            style = MaterialTheme.typography.labelLarge,
+            modifier = Modifier.align(Alignment.Start)
+        )
 
-            videoOptions.forEach { video ->
-                Button(
-                    onClick = {
-                        if (!isTesting) {
-                            selectedVideo = video
-                            isTesting = true
-                            loadingState = "Preparando prueba de ${video.name}..."
-                        }
-                    },
-                    enabled = !isTesting,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 4.dp)
-                ) {
-                    Text(video.name)
-                }
+        Spacer(modifier = Modifier.height(8.dp))
+
+        videoOptions.forEach { video ->
+            Button(
+                onClick = {
+                    if (!isTesting) {
+                        selectedVideo = video
+                        isTesting = true
+                        loadingState = "Preparando prueba de ${video.name}..."
+                    }
+                },
+                enabled = !isTesting,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 4.dp)
+            ) {
+                Text(video.name)
             }
         }
+
+        Spacer(modifier = Modifier.height(16.dp))
 
         // Estado de la prueba
         if (loadingState.isNotEmpty()) {
             Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 8.dp)
+                modifier = Modifier.fillMaxWidth()
             ) {
                 Text(
                     text = loadingState,
@@ -161,16 +150,17 @@ fun VideoSpeedTestApp() {
                     style = MaterialTheme.typography.bodyMedium
                 )
             }
+            Spacer(modifier = Modifier.height(8.dp))
         }
 
         // Historial de pruebas
         Text(
             text = "Historial de Pruebas",
             style = MaterialTheme.typography.titleMedium,
-            modifier = Modifier
-                .padding(vertical = 8.dp)
-                .align(Alignment.Start)
+            modifier = Modifier.align(Alignment.Start)
         )
+
+        Spacer(modifier = Modifier.height(8.dp))
 
         if (testHistory.isEmpty()) {
             Text(
@@ -197,21 +187,27 @@ fun VideoSpeedTestApp() {
         LaunchedEffect(isTesting) {
             try {
                 val videoToTest = selectedVideo!!
-                updateNetworkType()
+                updateNetworkInfo()
 
                 loadingState = "Iniciando prueba de ${videoToTest.name}..."
 
                 val startTime = System.currentTimeMillis()
                 var bytesDownloaded = 0L
+                var contentLength = 0L
 
                 withContext(Dispatchers.IO) {
                     val connection = URL(videoToTest.url).openConnection().apply {
                         connectTimeout = 30000
-                        readTimeout = 300000
+                        readTimeout = 600000 // 10 minutos timeout
+
+                        // Headers para PixelDrain
+                        if (videoToTest.url.contains("pixeldrain.com")) {
+                            setRequestProperty("Accept", "application/octet-stream")
+                        }
                     }
 
                     connection.connect()
-                    val contentLength = connection.contentLengthLong
+                    contentLength = connection.contentLengthLong
 
                     connection.getInputStream().use { inputStream ->
                         val buffer = ByteArray(8 * 1024)
@@ -219,8 +215,21 @@ fun VideoSpeedTestApp() {
 
                         while (inputStream.read(buffer).also { bytesRead = it } != -1) {
                             bytesDownloaded += bytesRead
-                            withContext(Dispatchers.Main) {
-                                loadingState = "Descargando ${bytesDownloaded / (1024 * 1024)}MB de ${contentLength / (1024 * 1024)}MB"
+
+                            // Actualizar progreso cada 5MB
+                            if (bytesDownloaded % (5 * 1024 * 1024) == 0L) {
+                                withContext(Dispatchers.Main) {
+                                    val currentSpeed = (bytesDownloaded / (1024.0 * 1024)) /
+                                            ((System.currentTimeMillis() - startTime) / 1000.0)
+
+                                    loadingState = buildString {
+                                        append("Descargando ${bytesDownloaded / (1024 * 1024)}MB")
+                                        if (contentLength > 0) {
+                                            append(" de ${contentLength / (1024 * 1024)}MB")
+                                        }
+                                        append("\nVelocidad actual: %.2f MB/s".format(currentSpeed))
+                                    }
+                                }
                             }
                         }
                     }
@@ -233,16 +242,21 @@ fun VideoSpeedTestApp() {
                 // Agregar al historial
                 testHistory = testHistory + TestResult(
                     videoName = videoToTest.name,
-                    networkType = networkType,
+                    networkType = networkInfo.type,
                     timeMs = duration,
                     speedMBps = speed,
                     fileSizeMB = bytesDownloaded / (1024 * 1024),
-                    timestamp = System.currentTimeMillis()
+                    timestamp = System.currentTimeMillis(),
+                    estimatedBandwidth = networkInfo.downstreamBandwidthKbps / 1000.0
                 )
 
-                loadingState = "¡Prueba completada en ${duration}ms!"
+                loadingState = "¡Prueba completada!\n" +
+                        "Tamaño: ${bytesDownloaded / (1024 * 1024)} MB\n" +
+                        "Tiempo: ${duration}ms\n" +
+                        "Velocidad: %.2f MB/s".format(speed)
+
             } catch (e: Exception) {
-                loadingState = "Error: ${e.message ?: "Error en la prueba"}"
+                loadingState = "Error en la prueba:\n${e.message ?: "Error desconocido"}"
             } finally {
                 isTesting = false
                 selectedVideo = null
@@ -252,7 +266,66 @@ fun VideoSpeedTestApp() {
 }
 
 @Composable
+fun NetworkInfoCard(networkInfo: NetworkInfo) {
+    Card(
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            // Tipo de red
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text("Tipo de red:", style = MaterialTheme.typography.labelMedium)
+                Text(networkInfo.type, style = MaterialTheme.typography.bodyMedium)
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Ancho de banda descendente
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text("Bajada estimada:", style = MaterialTheme.typography.labelMedium)
+                Text(
+                    text = if (networkInfo.downstreamBandwidthKbps > 0) {
+                        "%.2f Mbps".format(networkInfo.downstreamBandwidthKbps / 1000.0)
+                    } else {
+                        "No disponible"
+                    },
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            }
+
+            Spacer(modifier = Modifier.height(4.dp))
+
+            // Ancho de banda ascendente
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text("Subida estimada:", style = MaterialTheme.typography.labelMedium)
+                Text(
+                    text = if (networkInfo.upstreamBandwidthKbps > 0) {
+                        "%.2f Mbps".format(networkInfo.upstreamBandwidthKbps / 1000.0)
+                    } else {
+                        "No disponible"
+                    },
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            }
+        }
+    }
+}
+
+@Composable
 fun TestResultItem(result: TestResult) {
+    val dateFormat = remember { SimpleDateFormat("HH:mm:ss", Locale.getDefault()) }
+    val formattedTime = remember(result.timestamp) {
+        dateFormat.format(Date(result.timestamp))
+    }
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -263,9 +336,21 @@ fun TestResultItem(result: TestResult) {
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
+                Text("Hora:", style = MaterialTheme.typography.labelMedium)
+                Text(formattedTime, style = MaterialTheme.typography.bodyMedium)
+            }
+
+            Spacer(modifier = Modifier.height(4.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
                 Text("Video:", style = MaterialTheme.typography.labelMedium)
                 Text(result.videoName, style = MaterialTheme.typography.bodyMedium)
             }
+
+            Spacer(modifier = Modifier.height(4.dp))
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -275,6 +360,8 @@ fun TestResultItem(result: TestResult) {
                 Text(result.networkType, style = MaterialTheme.typography.bodyMedium)
             }
 
+            Spacer(modifier = Modifier.height(4.dp))
+
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween
@@ -282,6 +369,8 @@ fun TestResultItem(result: TestResult) {
                 Text("Tamaño:", style = MaterialTheme.typography.labelMedium)
                 Text("${result.fileSizeMB} MB", style = MaterialTheme.typography.bodyMedium)
             }
+
+            Spacer(modifier = Modifier.height(4.dp))
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -291,12 +380,27 @@ fun TestResultItem(result: TestResult) {
                 Text("${result.timeMs} ms", style = MaterialTheme.typography.bodyMedium)
             }
 
+            Spacer(modifier = Modifier.height(4.dp))
+
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Text("Velocidad:", style = MaterialTheme.typography.labelMedium)
                 Text("%.2f MB/s".format(result.speedMBps), style = MaterialTheme.typography.bodyMedium)
+            }
+
+            Spacer(modifier = Modifier.height(4.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text("Ancho de banda estimado:", style = MaterialTheme.typography.labelMedium)
+                Text(
+                    "%.2f Mbps".format(result.estimatedBandwidth),
+                    style = MaterialTheme.typography.bodyMedium
+                )
             }
         }
     }
@@ -309,5 +413,6 @@ data class TestResult(
     val timeMs: Long,
     val speedMBps: Double,
     val fileSizeMB: Long,
-    val timestamp: Long
+    val timestamp: Long,
+    val estimatedBandwidth: Double
 )
