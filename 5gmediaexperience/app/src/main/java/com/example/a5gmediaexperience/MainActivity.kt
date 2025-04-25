@@ -76,6 +76,10 @@ fun VideoSpeedTestApp() {
     // Actualizar al iniciar
     LaunchedEffect(Unit) {
         updateNetworkInfo()
+        //Monitorear
+        NetworkMonitor.startMonitoring(context) {
+            networkInfo = it
+        }
     }
 
     Column(
