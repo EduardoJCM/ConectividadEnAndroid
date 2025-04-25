@@ -30,12 +30,4 @@ object NetworkMonitor {
 
         connectivityManager.registerDefaultNetworkCallback(callback!!)
     }
-
-    fun stopMonitoring(context: Context) {
-        val connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
-        callback?.let {
-            connectivityManager.unregisterNetworkCallback(it)
-            callback = null
-        }
-    }
 }
