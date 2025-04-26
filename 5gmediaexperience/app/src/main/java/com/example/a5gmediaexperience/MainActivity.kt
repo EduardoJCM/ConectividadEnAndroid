@@ -55,7 +55,7 @@ class MainActivity<Bundle> : ComponentActivity() {
 @Composable
 fun VideoSpeedTestApp() {
     val context = LocalContext.current
-    var networkInfo by remember { mutableStateOf(NetworkInfo("Detectando red...", 0, 0)) }
+    var networkInfo by remember { mutableStateOf(NetworkInfo("Detectando red...", 0, 0, true)) }
     var loadingState by remember { mutableStateOf("") }
     var isTesting by remember { mutableStateOf(false) }
     var selectedVideo by remember { mutableStateOf<VideoOption?>(null) }
@@ -246,12 +246,13 @@ fun VideoSpeedTestApp() {
                 // Agregar al historial
                 testHistory = testHistory + TestResult(
                     videoName = videoToTest.name,
-                    networkType = networkInfo.type,
+                    networkType = "${networkInfo.type} (${if (networkInfo.isMetered) "Medida" else "No medida"})",
                     timeMs = duration,
                     speedMBps = speed,
                     fileSizeMB = bytesDownloaded / (1024 * 1024),
                     timestamp = System.currentTimeMillis(),
-                    estimatedBandwidth = networkInfo.downstreamBandwidthKbps / 1000.0
+                    estimatedBandwidth = networkInfo.downstreamBandwidthKbps / 1000.0,
+                    isMetered = networkInfo.isMetered
                 )
 
                 loadingState = "¡Prueba completada!\n" +
@@ -281,12 +282,15 @@ fun NetworkInfoCard(networkInfo: NetworkInfo) {
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Text("Tipo de red:", style = MaterialTheme.typography.labelMedium)
-                Text(networkInfo.type, style = MaterialTheme.typography.bodyMedium)
+                Text(
+                    text = "${networkInfo.type} (${if (networkInfo.isMetered) "Medida" else "No medida"})",
+                    style = MaterialTheme.typography.bodyMedium
+                )
             }
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Ancho de banda descendente
+            // Resto del código de la tarjeta permanece igual...
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween
@@ -304,7 +308,6 @@ fun NetworkInfoCard(networkInfo: NetworkInfo) {
 
             Spacer(modifier = Modifier.height(4.dp))
 
-            // Ancho de banda ascendente
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween
@@ -394,6 +397,18 @@ fun TestResultItem(result: TestResult) {
                 Text("%.2f MB/s".format(result.speedMBps), style = MaterialTheme.typography.bodyMedium)
             }
 
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text("Tipo de medición:", style = MaterialTheme.typography.labelMedium)
+                Text(
+                    if (result.isMetered) "Red medida" else "Red no medida",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = if (result.isMetered) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
+                )
+            }
+
             Spacer(modifier = Modifier.height(4.dp))
 
             Row(
@@ -418,5 +433,6 @@ data class TestResult(
     val speedMBps: Double,
     val fileSizeMB: Long,
     val timestamp: Long,
-    val estimatedBandwidth: Double
+    val estimatedBandwidth: Double,
+    val isMetered: Boolean
 )

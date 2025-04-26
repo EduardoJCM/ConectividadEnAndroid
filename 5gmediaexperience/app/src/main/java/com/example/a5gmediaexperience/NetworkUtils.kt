@@ -13,16 +13,25 @@ import androidx.core.content.ContextCompat
 data class NetworkInfo(
     val type: String,
     val downstreamBandwidthKbps: Int,
-    val upstreamBandwidthKbps: Int
+    val upstreamBandwidthKbps: Int,
+    val isMetered: Boolean
 )
 
 fun getNetworkInfo(context: Context): NetworkInfo {
     val connectivityManager =
         context.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
-            ?: return NetworkInfo("Sin conexión", 0, 0)
+            ?: return NetworkInfo("Sin conexión", 0, 0, true)
 
-    val network = connectivityManager.activeNetwork ?: return NetworkInfo("Sin conexión", 0, 0)
-    val capabilities = connectivityManager.getNetworkCapabilities(network) ?: return NetworkInfo("Sin conexión", 0, 0)
+    val network = connectivityManager.activeNetwork ?: return NetworkInfo("Sin conexión", 0, 0, true)
+    val capabilities = connectivityManager.getNetworkCapabilities(network) ?: return NetworkInfo("Sin conexión", 0, 0, true)
+
+    // Verificar si la red es medida
+    val isMetered = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+        !(capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_NOT_METERED) ||
+                !capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_TEMPORARILY_NOT_METERED))
+    } else {
+        true // Por defecto asumimos que es medida en versiones antiguas
+    }
 
     return NetworkInfo(
         type = when {
@@ -56,27 +65,13 @@ fun getNetworkInfo(context: Context): NetworkInfo {
                             when (networkType) {
                                 TelephonyManager.NETWORK_TYPE_NR -> "5G"
                                 TelephonyManager.NETWORK_TYPE_LTE -> "4G/LTE"
-                                TelephonyManager.NETWORK_TYPE_HSPAP -> "3G HSPA+"
-                                TelephonyManager.NETWORK_TYPE_HSDPA -> "3G HSDPA"
-                                TelephonyManager.NETWORK_TYPE_HSUPA -> "3G HSUPA"
-                                TelephonyManager.NETWORK_TYPE_UMTS -> "3G UMTS"
-                                TelephonyManager.NETWORK_TYPE_EDGE -> "2G EDGE"
-                                TelephonyManager.NETWORK_TYPE_GPRS -> "2G GPRS"
                                 else -> "Datos móviles"
                             }
                         } else {
                             @Suppress("DEPRECATION")
-                            val networkType = telephonyManager.networkType
-                            @Suppress("DEPRECATION")
-                            when (networkType) {
+                            when (telephonyManager.networkType) {
                                 TelephonyManager.NETWORK_TYPE_NR -> "5G"
                                 TelephonyManager.NETWORK_TYPE_LTE -> "4G/LTE"
-                                TelephonyManager.NETWORK_TYPE_HSPAP -> "3G HSPA+"
-                                TelephonyManager.NETWORK_TYPE_HSDPA -> "3G HSDPA"
-                                TelephonyManager.NETWORK_TYPE_HSUPA -> "3G HSUPA"
-                                TelephonyManager.NETWORK_TYPE_UMTS -> "3G UMTS"
-                                TelephonyManager.NETWORK_TYPE_EDGE -> "2G EDGE"
-                                TelephonyManager.NETWORK_TYPE_GPRS -> "2G GPRS"
                                 else -> "Datos móviles"
                             }
                         }
@@ -96,6 +91,7 @@ fun getNetworkInfo(context: Context): NetworkInfo {
             capabilities.linkUpstreamBandwidthKbps
         } else {
             0
-        }
+        },
+        isMetered = isMetered
     )
 }
