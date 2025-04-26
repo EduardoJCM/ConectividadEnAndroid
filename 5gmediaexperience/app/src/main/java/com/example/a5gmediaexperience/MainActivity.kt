@@ -15,6 +15,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import kotlinx.coroutines.Dispatchers
@@ -134,23 +135,46 @@ fun VideoSpeedTestApp() {
 
         Spacer(modifier = Modifier.height(8.dp))
 
-        videoOptions.forEach { video ->
-            Button(
-                onClick = {
-                    if (!isTesting) {
-                        selectedVideo = video
-                        isTesting = true
-                        loadingState = "Preparando prueba de ${video.name}..."
-                    }
-                },
-                enabled = !isTesting,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 4.dp)
-            ) {
-                Text(video.name)
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 4.dp),
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            videoOptions.forEach { video ->
+                Button(
+                    onClick = {
+                        if (!isTesting) {
+                            selectedVideo = video
+                            isTesting = true
+                            loadingState = "Preparando prueba de ${video.name}..."
+                        }
+                    },
+                    enabled = !isTesting,
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(horizontal = 4.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primaryContainer,
+                        contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                    ),
+                    shape = MaterialTheme.shapes.medium,
+                    elevation = ButtonDefaults.buttonElevation(
+                        defaultElevation = 2.dp,
+                        pressedElevation = 4.dp,
+                        disabledElevation = 0.dp
+                    )
+                ) {
+                    Text(
+                        text = video.name.split(" ")[1], // Muestra solo "Pequeña", "Mediana", "Grande"
+                        style = MaterialTheme.typography.labelMedium,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
             }
         }
+
 
         Spacer(modifier = Modifier.height(16.dp))
 
@@ -262,10 +286,11 @@ fun VideoSpeedTestApp() {
                     speedMBps = speed,
                     fileSizeMB = bytesDownloaded / (1024 * 1024),
                     timestamp = System.currentTimeMillis(),
-                    estimatedBandwidth = networkInfo.downstreamBandwidthKbps / 1000.0,
+                    estimatedBandwidth = speed*8,
                     isMetered = networkInfo.isMetered,
                     networkGeneration = networkInfo.networkGeneration,
-                    networkTechnology = networkInfo.networkTechnology
+                    networkTechnology = networkInfo.networkTechnology,
+                    recommendedQuality = getRecommendedQuality(speed*8)
                 )
 
                 loadingState = "¡Prueba completada!\n" +
@@ -285,6 +310,11 @@ fun VideoSpeedTestApp() {
 
 @Composable
 fun NetworkInfoCard(networkInfo: NetworkInfo) {
+    val downstreamMbps = networkInfo.downstreamBandwidthKbps / 1000.0
+    val recommendedQuality = remember(downstreamMbps) {
+        getRecommendedQuality(downstreamMbps)
+    }
+
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp)) {
             // Tipo de red principal
@@ -341,6 +371,20 @@ fun NetworkInfoCard(networkInfo: NetworkInfo) {
                     },
                     style = MaterialTheme.typography.bodyMedium
                 )
+            }
+            if (downstreamMbps > 0) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text("Calidad recomendada:", style = MaterialTheme.typography.labelMedium)
+                    Text(
+                        text = recommendedQuality,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
             }
         }
     }
@@ -441,6 +485,18 @@ fun TestResultItem(result: TestResult) {
                     style = MaterialTheme.typography.bodyMedium
                 )
             }
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text("Calidad recomendada:", style = MaterialTheme.typography.labelMedium)
+                Text(
+                    text = result.recommendedQuality,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween
@@ -473,5 +529,6 @@ data class TestResult(
     val estimatedBandwidth: Double,
     val isMetered: Boolean,
     val networkGeneration: String,
-    val networkTechnology: String
+    val networkTechnology: String,
+    val recommendedQuality: String
 )

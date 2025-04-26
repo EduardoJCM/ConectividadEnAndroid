@@ -150,16 +150,31 @@ fun getNetworkGeneration(telephonyManager: TelephonyManager): Pair<String, Strin
     }
 }
 
+fun getRecommendedQuality(downstreamMbps: Double): String {
+    return when {
+        downstreamMbps >= 25 -> "4K (Bajada: ≥25 Mbps)"
+        downstreamMbps >= 10 -> "1080p (Bajada: ≥10 Mbps)"
+        downstreamMbps >= 5 -> "720p (Bajada: ≥5 Mbps)"
+        downstreamMbps >= 2.5 -> "480p (Bajada: ≥2.5 Mbps)"
+        downstreamMbps >= 1 -> "360p (Bajada: ≥1 Mbps)"
+        else -> "240p (Para conexiones lentas)"
+    }
+}
+
 fun getNetworkInfo(context: Context): NetworkInfo {
-    val connectivityManager =
-        context.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
-            ?: return NetworkInfo("Sin conexión", 0, 0, true, "Desconocido", "Desconocido")
+    val connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
+        ?: return NetworkInfo("Sin conexión", 0, 0, true, "Desconocido", "Desconocido")
 
     val network = connectivityManager.activeNetwork ?: return NetworkInfo("Sin conexión", 0, 0, true, "Desconocido", "Desconocido")
     val capabilities = connectivityManager.getNetworkCapabilities(network) ?: return NetworkInfo("Sin conexión", 0, 0, true, "Desconocido", "Desconocido")
 
-    val isMetered = !capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_NOT_METERED) &&
-            !capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_TEMPORARILY_NOT_METERED)
+    // Corrección importante para la detección de red medida
+    val isMetered = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+        connectivityManager.isActiveNetworkMetered
+    } else {
+        !capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_NOT_METERED) &&
+                !capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_TEMPORARILY_NOT_METERED)
+    }
 
     return when {
         capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) -> {
@@ -187,7 +202,7 @@ fun getNetworkInfo(context: Context): NetworkInfo {
                     type = "Datos móviles",
                     downstreamBandwidthKbps = 0,
                     upstreamBandwidthKbps = 0,
-                    isMetered = true,
+                    isMetered = isMetered,
                     networkGeneration = "Desconocido",
                     networkTechnology = "Desconocido"
                 )
@@ -217,7 +232,7 @@ fun getNetworkInfo(context: Context): NetworkInfo {
                         type = "Datos móviles",
                         downstreamBandwidthKbps = 0,
                         upstreamBandwidthKbps = 0,
-                        isMetered = true,
+                        isMetered = isMetered,
                         networkGeneration = "Desconocido",
                         networkTechnology = "Desconocido"
                     )
@@ -228,7 +243,7 @@ fun getNetworkInfo(context: Context): NetworkInfo {
             type = "Red desconocida",
             downstreamBandwidthKbps = 0,
             upstreamBandwidthKbps = 0,
-            isMetered = true,
+            isMetered = isMetered,
             networkGeneration = "Desconocido",
             networkTechnology = "Desconocido"
         )
