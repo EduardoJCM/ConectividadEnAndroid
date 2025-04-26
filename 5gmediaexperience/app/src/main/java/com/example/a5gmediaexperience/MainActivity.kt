@@ -55,7 +55,18 @@ class MainActivity<Bundle> : ComponentActivity() {
 @Composable
 fun VideoSpeedTestApp() {
     val context = LocalContext.current
-    var networkInfo by remember { mutableStateOf(NetworkInfo("Detectando red...", 0, 0, true)) }
+    var networkInfo by remember {
+        mutableStateOf(
+            NetworkInfo(
+                type = "Detectando red...",
+                downstreamBandwidthKbps = 0,
+                upstreamBandwidthKbps = 0,
+                isMetered = true,
+                networkGeneration = "Desconocido",
+                networkTechnology = "Desconocido"
+            )
+        )
+    }
     var loadingState by remember { mutableStateOf("") }
     var isTesting by remember { mutableStateOf(false) }
     var selectedVideo by remember { mutableStateOf<VideoOption?>(null) }
@@ -252,7 +263,9 @@ fun VideoSpeedTestApp() {
                     fileSizeMB = bytesDownloaded / (1024 * 1024),
                     timestamp = System.currentTimeMillis(),
                     estimatedBandwidth = networkInfo.downstreamBandwidthKbps / 1000.0,
-                    isMetered = networkInfo.isMetered
+                    isMetered = networkInfo.isMetered,
+                    networkGeneration = networkInfo.networkGeneration,
+                    networkTechnology = networkInfo.networkTechnology
                 )
 
                 loadingState = "¡Prueba completada!\n" +
@@ -272,20 +285,27 @@ fun VideoSpeedTestApp() {
 
 @Composable
 fun NetworkInfoCard(networkInfo: NetworkInfo) {
-    Card(
-        modifier = Modifier.fillMaxWidth()
-    ) {
+    Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp)) {
-            // Tipo de red
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
+            // Tipo de red principal
+            Row(horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
                 Text("Tipo de red:", style = MaterialTheme.typography.labelMedium)
-                Text(
-                    text = "${networkInfo.type} (${if (networkInfo.isMetered) "Medida" else "No medida"})",
-                    style = MaterialTheme.typography.bodyMedium
-                )
+                Text(networkInfo.type, style = MaterialTheme.typography.bodyMedium)
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Detalles técnicos
+            Row(horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
+                Text("Generación:", style = MaterialTheme.typography.labelMedium)
+                Text(networkInfo.networkGeneration, style = MaterialTheme.typography.bodyMedium)
+            }
+
+            Spacer(modifier = Modifier.height(4.dp))
+
+            Row(horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
+                Text("Tecnología:", style = MaterialTheme.typography.labelMedium)
+                Text(networkInfo.networkTechnology, style = MaterialTheme.typography.bodyMedium)
             }
 
             Spacer(modifier = Modifier.height(8.dp))
@@ -421,6 +441,23 @@ fun TestResultItem(result: TestResult) {
                     style = MaterialTheme.typography.bodyMedium
                 )
             }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text("Generación:", style = MaterialTheme.typography.labelMedium)
+                Text(result.networkGeneration, style = MaterialTheme.typography.bodyMedium)
+            }
+
+            Spacer(modifier = Modifier.height(4.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text("Tecnología:", style = MaterialTheme.typography.labelMedium)
+                Text(result.networkTechnology, style = MaterialTheme.typography.bodyMedium)
+            }
         }
     }
 }
@@ -434,5 +471,7 @@ data class TestResult(
     val fileSizeMB: Long,
     val timestamp: Long,
     val estimatedBandwidth: Double,
-    val isMetered: Boolean
+    val isMetered: Boolean,
+    val networkGeneration: String,
+    val networkTechnology: String
 )

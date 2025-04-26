@@ -58,4 +58,8 @@ dependencies {
 
     implementation(libs.kotlinx.coroutines.android)
 
+    implementation(libs.androidx.constraintlayout)
+    implementation(libs.androidx.appcompat)
+
+
 }
